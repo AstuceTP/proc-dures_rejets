@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Process — Rejet mutuelle soins courants</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple-light: #EEEDFE;
+    --purple-mid:   #534AB7;
+    --purple-dark:  #3C3489;
+    --teal-light:   #E1F5EE;
+    --teal-mid:     #0F6E56;
+    --teal-dark:    #085041;
+    --coral-light:  #FAECE7;
+    --coral-mid:    #993C1D;
+    --coral-dark:   #712B13;
+    --amber-light:  #FAEEDA;
+    --amber-mid:    #854F0B;
+    --amber-dark:   #633806;
+    --gray-light:   #F1EFE8;
+    --gray-mid:     #5F5E5A;
+    --gray-dark:    #444441;
+    --red-light:    #FCEBEB;
+    --red-mid:      #A32D2D;
+    --warn-light:   #FFF8E1;
+    --warn-mid:     #7B5800;
+    --border:       rgba(0,0,0,0.10);
+    --text:         #1a1a18;
+    --text-muted:   #5a5a56;
+    --bg:           #f8f7f4;
+    --surface:      #ffffff;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header .badge {
+    background: var(--purple-light);
+    color: var(--purple-mid);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* ── FLOW ── */
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+  /* ── NODES ── */
+  .node {
+    width: 100%;
+    max-width: 560px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+    position: relative;
+  }
+  .node-trigger {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .node-trigger:hover { background: rgba(0,0,0,.025); }
+  .node-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .node-text { flex: 1; }
+  .node-title { font-size: 14px; font-weight: 600; }
+  .node-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .node-chevron {
+    font-size: 18px; color: var(--text-muted);
+    transition: transform .2s; flex-shrink: 0;
+    line-height: 1;
+  }
+  .node-chevron.open { transform: rotate(180deg); }
+  .node-body {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 14px 16px 14px 60px;
+  }
+  .node-body.open { display: block; }
+
+  /* node colors */
+  .n-purple .node-icon { background: var(--purple-light); color: var(--purple-mid); }
+  .n-purple { border-left: 3px solid var(--purple-mid); }
+  .n-teal   .node-icon { background: var(--teal-light); color: var(--teal-mid); }
+  .n-teal   { border-left: 3px solid var(--teal-mid); }
+  .n-coral  .node-icon { background: var(--coral-light); color: var(--coral-mid); }
+  .n-coral  { border-left: 3px solid var(--coral-mid); }
+  .n-amber  .node-icon { background: var(--amber-light); color: var(--amber-mid); }
+  .n-amber  { border-left: 3px solid var(--amber-mid); }
+  .n-gray   .node-icon { background: var(--gray-light); color: var(--gray-mid); }
+  .n-gray   { border-left: 3px solid var(--gray-mid); }
+
+  /* ── ARROW ── */
+  .arrow {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0; height: 36px; position: relative;
+  }
+  .arrow::before {
+    content: ''; width: 1px; height: 28px;
+    background: var(--border); display: block;
+  }
+  .arrow::after {
+    content: '▼'; font-size: 9px; color: var(--text-muted); line-height: 1;
+    margin-top: -2px;
+  }
+  .arrow.labeled { height: 44px; }
+  .arrow-label {
+    font-size: 11px; color: var(--text-muted);
+    position: absolute; top: 6px; left: calc(50% + 8px);
+    white-space: nowrap;
+  }
+
+  /* ── DIAMOND (losange) ── */
+  .diamond-wrap {
+    width: 100%; max-width: 560px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .diamond {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 24px;
+    text-align: center;
+    position: relative;
+  }
+  .diamond::before {
+    content: ''; position: absolute; top: -1px; left: -1px; right: -1px; bottom: -1px;
+    border-radius: 8px; pointer-events: none;
+  }
+  .diamond-title { font-size: 14px; font-weight: 600; }
+  .diamond-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── BRANCHES ── */
+  .branch-split {
+    width: 100%; max-width: 800px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    margin: 0;
+  }
+  .branch-col {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 8px;
+  }
+  .branch-label-row {
+    width: 100%; max-width: 800px;
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  .branch-label {
+    text-align: center; font-size: 11px;
+    font-weight: 600; padding: 4px 0 0;
+    letter-spacing: .03em;
+  }
+  .bl-yes { color: var(--teal-mid); }
+  .bl-no  { color: var(--coral-mid); }
+
+  .branch-col .node { max-width: 100%; }
+  .branch-col .arrow { width: 100%; }
+
+  /* ── CONVERGENCE ── */
+  .converge {
+    width: 100%; max-width: 800px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .converge-line {
+    width: calc(50% + 1px);
+    height: 1px;
+    background: var(--border);
+    align-self: flex-start;
+    margin-left: 25%;
+  }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .check-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── STEPS LIST ── */
+  .steps { list-style: none; counter-reset: step; }
+  .steps li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13px; padding: 5px 0; line-height: 1.5;
+    border-bottom: 1px solid var(--border);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--gray-light); color: var(--gray-mid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── ALERTS ── */
+  .alert {
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+  .alert-danger {
+    background: var(--red-light);
+    border: 1px solid #F09595;
+    color: var(--red-mid);
+  }
+  .alert-warn {
+    background: var(--warn-light);
+    border: 1px solid #EFC23A;
+    color: var(--warn-mid);
+  }
+  .alert strong { font-weight: 600; }
+
+  /* ── PILLS ── */
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pill {
+    font-size: 11px; padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background: var(--surface);
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-muted);
+    padding: 4px 0 8px;
+    align-self: flex-start;
+  }
+
+  /* ── END NODE ── */
+  .end-node {
+    background: var(--gray-light);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 10px 28px;
+    font-size: 13px; font-weight: 600;
+    color: var(--gray-dark);
+    max-width: 280px;
+    text-align: center;
+  }
+
+  /* ── TRIGGER NODE (pill top) ── */
+  .trigger-node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 10px 28px;
+    font-size: 14px; font-weight: 600;
+    color: var(--text);
+    max-width: 380px;
+    text-align: center;
+    width: 100%;
+  }
+
+  /* ── SUB-BRANCH inside body ── */
+  .sub-branch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .sub-card {
+    border-radius: 8px; padding: 12px;
+    border: 1px solid var(--border);
+  }
+  .sub-card-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  .sub-card ol { padding-left: 16px; }
+  .sub-card ol li { font-size: 12px; padding: 2px 0; color: var(--text); line-height: 1.5; }
+
+  .mode-row { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .mode-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12px; padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+  .mode-item:last-child { border-bottom: none; }
+  .mode-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; flex-shrink: 0; margin-top: 1px;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="badge">Process</span>
+  <h1>Rejet mutuelle — soins courants</h1>
+  <p>Cliquer sur chaque étape pour afficher le détail</p>
+</header>
+
+<div class="page">
+<div class="flow">
+
+  <!-- DÉCLENCHEUR -->
+  <div class="trigger-node">Rejet mutuelle reçu — soins courants</div>
+  <div class="arrow"></div>
+
+  <!-- ÉTAPE 1 -->
+  <div class="node n-purple" id="n1">
+    <div class="node-trigger" onclick="toggle('n1')">
+      <div class="node-icon">1</div>
+      <div class="node-text">
+        <div class="node-title">Vérifier la carte mutuelle en totalité</div>
+        <div class="node-sub">Confirmer que le motif signalé correspond à la réalité</div>
+      </div>
+      <div class="node-chevron" id="chev-n1">&#8964;</div>
+    </div>
+    <div class="node-body" id="body-n1">
+      <ul class="checklist">
+        <li><div class="check-dot" style="background:var(--purple-light);color:var(--purple-mid)">1</div>Mutuelle saisie dans le logiciel = mutuelle indiquée sur la carte ?</li>
+        <li><div class="check-dot" style="background:var(--purple-light);color:var(--purple-mid)">2</div>Convention DRE et critère secondaire corrects ? <span style="color:var(--text-muted);font-size:11px">(ex. AL001, VM001)</span></li>
+        <li><div class="check-dot" style="background:var(--purple-light);color:var(--purple-mid)">3</div>Numéro de sécurité sociale du bénéficiaire identique ?</li>
+        <li><div class="check-dot" style="background:var(--purple-light);color:var(--purple-mid)">4</div>Date de naissance identique ? <span style="color:var(--text-muted);font-size:11px">— seuls ces 2 champs sont vérifiés par le logiciel mutuelle</span></li>
+        <li><div class="check-dot" style="background:var(--purple-light);color:var(--purple-mid)">5</div>Garantie CSTE (centre de santé) bien présente sur la carte ?</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- LOSANGE 1 -->
+  <div class="diamond-wrap">
+    <div class="diamond">
+      <div class="diamond-title">Dossier conforme ?</div>
+      <div class="diamond-sub">La saisie dans le logiciel correspond-elle à la carte mutuelle ?</div>
+    </div>
+  </div>
+
+  <!-- BRANCHES OUI / NON -->
+  <div class="branch-label-row" style="max-width:800px">
+    <div class="branch-label bl-yes">&#10003; Oui — conforme</div>
+    <div class="branch-label bl-no">&#10005; Non — non conforme</div>
+  </div>
+
+  <div class="branch-split">
+
+    <!-- ══ BRANCHE OUI ══ -->
+    <div class="branch-col">
+      <div class="arrow"></div>
+      <div class="diamond" style="width:100%">
+        <div class="diamond-title">Motif = droits fermés ?</div>
+      </div>
+
+      <!-- sous-branche Non -->
+      <div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div class="arrow labeled"><span class="arrow-label" style="left:auto;right:calc(50% + 8px)">Non</span></div>
+          <div class="node n-teal" id="n-rec-direct" style="max-width:100%">
+            <div class="node-trigger" onclick="toggle('n-rec-direct')">
+              <div class="node-icon" style="font-size:16px">&#8617;</div>
+              <div class="node-text">
+                <div class="node-title">Faire une réclamation</div>
+                <div class="node-sub">Portail, mail ou saisie</div>
+              </div>
+              <div class="node-chevron" id="chev-n-rec-direct">&#8964;</div>
+            </div>
+            <div class="node-body" id="body-n-rec-direct">
+              <ul class="steps">
+                <li>Récupérer le PDF de la facture</li>
+                <li>Accéder au portail du réseau ou envoyer par mail dédié</li>
+                <li>Joindre la facture sans modification</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- sous-branche Oui droits fermés -->
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div class="arrow labeled"><span class="arrow-label" style="left:calc(50% + 8px)">Oui</span></div>
+          <div class="node n-amber" id="n-droits" style="max-width:100%">
+            <div class="node-trigger" onclick="toggle('n-droits')">
+              <div class="node-icon" style="font-size:15px">&#9888;</div>
+              <div class="node-text">
+                <div class="node-title">Vérifier sur la plateforme</div>
+                <div class="node-sub">Droits vraiment fermés ?</div>
+              </div>
+              <div class="node-chevron" id="chev-n-droits">&#8964;</div>
+            </div>
+            <div class="node-body" id="body-n-droits">
+              <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--amber-mid)">Plateformes disponibles</div>
+              <div class="pills">
+                <span class="pill">Almerys</span>
+                <span class="pill">Viamedis</span>
+                <span class="pill">i-Santé</span>
+                <span class="pill">SP Santé</span>
+              </div>
+              <div style="margin-top:12px;">
+                <div style="font-size:12px;font-weight:600;color:var(--teal-mid);margin-bottom:4px">Droits en réalité ouverts → faux rejet</div>
+                <div style="font-size:12px;color:var(--text-muted)">Faire une réclamation normale</div>
+                <div style="margin-top:10px;font-size:12px;font-weight:600;color:var(--coral-mid);margin-bottom:4px">Droits confirmés fermés</div>
+                <ul class="steps">
+                  <li>Refaire le dossier sans part AMC</li>
+                  <li>Passer la part mutuelle en patient</li>
+                  <li>Laisser un message dans le dossier <span style="color:var(--text-muted)">(motif + date + action)</span></li>
+                  <li>Envoyer un mail au centre si besoin pour informer</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ BRANCHE NON ══ -->
+    <div class="branch-col">
+      <div class="arrow"></div>
+      <div class="diamond" style="width:100%">
+        <div class="diamond-title">Quel problème ?</div>
+      </div>
+
+      <div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <!-- CAS 1 sécu/DDN -->
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div class="arrow labeled"><span class="arrow-label" style="left:auto;right:calc(50% + 4px);font-size:10px">Sécu/DDN</span></div>
+          <div class="node n-coral" id="n-pdf" style="max-width:100%">
+            <div class="node-trigger" onclick="toggle('n-pdf')">
+              <div class="node-icon" style="font-size:13px">PDF</div>
+              <div class="node-text">
+                <div class="node-title">Corriger le PDF</div>
+                <div class="node-sub">WPS ou équivalent</div>
+              </div>
+              <div class="node-chevron" id="chev-n-pdf">&#8964;</div>
+            </div>
+            <div class="node-body" id="body-n-pdf">
+              <ul class="steps">
+                <li>Récupérer le PDF de la facture</li>
+                <li>Ouvrir dans WPS Office (ou autre outil PDF)</li>
+                <li>Localiser le N° de sécu et/ou la date de naissance</li>
+                <li>Corriger avec la valeur exacte de la carte mutuelle</li>
+                <li>Enregistrer en PDF</li>
+                <li>Vérifier le résultat avant envoi</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAS 2 mauvaise mutuelle -->
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div class="arrow labeled"><span class="arrow-label" style="left:calc(50% + 4px);font-size:10px">Mutuelle</span></div>
+          <div class="node n-coral" id="n-benef" style="max-width:100%">
+            <div class="node-trigger" onclick="toggle('n-benef')">
+              <div class="node-icon" style="font-size:13px">&#10003;</div>
+              <div class="node-text">
+                <div class="node-title">Vérifier bénéficiaire</div>
+                <div class="node-sub">Sécu + DDN corrects ?</div>
+              </div>
+              <div class="node-chevron" id="chev-n-benef">&#8964;</div>
+            </div>
+            <div class="node-body" id="body-n-benef">
+              <ul class="checklist">
+                <li><div class="check-dot" style="background:var(--coral-light);color:var(--coral-mid)">&#10003;</div>N° de sécu sur la facture correspond à la carte</li>
+                <li><div class="check-dot" style="background:var(--coral-light);color:var(--coral-mid)">&#10003;</div>Date de naissance sur la facture correspond à la carte</li>
+              </ul>
+              <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">Si tout est correct → renvoyer la facture telle quelle à la bonne mutuelle</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONVERGENCE -->
+  <div style="width:100%;max-width:800px;height:32px;position:relative;display:flex;justify-content:center;">
+    <div style="position:absolute;bottom:0;left:25%;right:25%;height:1px;background:var(--border)"></div>
+    <div style="position:absolute;bottom:0;width:1px;height:100%;background:var(--border)"></div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ÉTAPE 3 : transmission -->
+  <div class="node n-teal" id="n3">
+    <div class="node-trigger" onclick="toggle('n3')">
+      <div class="node-icon">&#8599;</div>
+      <div class="node-text">
+        <div class="node-title">Transmettre la facture à la mutuelle</div>
+        <div class="node-sub">Toujours une FACTURE — jamais une feuille de soins</div>
+      </div>
+      <div class="node-chevron" id="chev-n3">&#8964;</div>
+    </div>
+    <div class="node-body" id="body-n3">
+      <div class="mode-row">
+        <div class="mode-item">
+          <span class="mode-badge" style="background:var(--teal-light);color:var(--teal-mid)">Priorité</span>
+          <span><strong>Portail web</strong> — Se connecter au portail du réseau (Almerys, Viamedis, e-Santé, SP Santé) et déposer la facture dans l'espace réclamation. Traçabilité garantie.</span>
+        </div>
+        <div class="mode-item">
+          <span class="mode-badge" style="background:var(--gray-light);color:var(--gray-mid)">Mail</span>
+          <span><strong>Envoi par mail</strong> — Adresse mail dédiée de la mutuelle ou du réseau. Conserver la preuve d'envoi.</span>
+        </div>
+        <div class="mode-item">
+          <span class="mode-badge" style="background:var(--gray-light);color:var(--gray-mid)">Logiciel</span>
+          <span><strong>Saisie dans le logiciel</strong> — Si disponible, uniquement pour la part mutuelle si la part Sécu est déjà réglée.</span>
+        </div>
+      </div>
+      <div class="alert alert-danger" style="margin-top:12px">
+        <strong>Ne jamais faire un avoir + refacturation dans le logiciel client.</strong><br>
+        La facture originale reste en place. On corrige uniquement ce qu'on envoie à la mutuelle.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- ÉTAPE 4 : corriger logiciel -->
+  <div class="node n-purple" id="n4">
+    <div class="node-trigger" onclick="toggle('n4')">
+      <div class="node-icon">4</div>
+      <div class="node-text">
+        <div class="node-title">Corriger la saisie dans le logiciel client</div>
+        <div class="node-sub">Obligatoire si une erreur de saisie a été constatée — indépendant de la correction PDF</div>
+      </div>
+      <div class="node-chevron" id="chev-n4">&#8964;</div>
+    </div>
+    <div class="node-body" id="body-n4">
+      <div class="sub-branch">
+        <div class="sub-card">
+          <div class="sub-card-title" style="color:var(--coral-mid)">Sécu / DDN erroné</div>
+          <ol>
+            <li>Ouvrir le dossier patient</li>
+            <li>Corriger le N° de sécu et/ou la date de naissance</li>
+            <li>Sauvegarder</li>
+          </ol>
+        </div>
+        <div class="sub-card">
+          <div class="sub-card-title" style="color:var(--coral-mid)">Mauvaise mutuelle</div>
+          <ol>
+            <li>Accéder à la fiche mutuelle du patient</li>
+            <li>Corriger le numéro AMC</li>
+            <li>Corriger la convention DRE et/ou le critère (ex. AL001)</li>
+            <li>Sauvegarder</li>
+          </ol>
+        </div>
+      </div>
+      <div class="alert alert-warn">
+        <strong>Ces deux actions sont indépendantes et toutes les deux obligatoires :</strong> corriger la facture manuellement ne dispense pas de mettre à jour le logiciel — et vice-versa.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- ÉTAPE 5 : suivi -->
+  <div class="node n-gray" id="n5">
+    <div class="node-trigger" onclick="toggle('n5')">
+      <div class="node-icon">&#9998;</div>
+      <div class="node-text">
+        <div class="node-title">Noter dans le suivi</div>
+        <div class="node-sub">Tableau Excel ou commentaire dans le dossier</div>
+      </div>
+      <div class="node-chevron" id="chev-n5">&#8964;</div>
+    </div>
+    <div class="node-body" id="body-n5">
+      <ul class="checklist">
+        <li><div class="check-dot" style="background:var(--gray-light);color:var(--gray-mid)">&#9998;</div>Nom du patient + mutuelle concernée + montant</li>
+        <li><div class="check-dot" style="background:var(--gray-light);color:var(--gray-mid)">&#9998;</div>Date de l'action effectuée</li>
+        <li><div class="check-dot" style="background:var(--gray-light);color:var(--gray-mid)">&#9998;</div>Type d'action : réclamation / correction PDF / renvoi / part patient</li>
+        <li><div class="check-dot" style="background:var(--gray-light);color:var(--gray-mid)">&#9998;</div>Statut : en attente / soldé / abandon</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+  <div class="end-node">Dossier traité</div>
+
+</div>
+</div>
+
+<script>
+function toggle(id) {
+  var body = document.getElementById('body-' + id);
+  var chev = document.getElementById('chev-' + id);
+  if (!body) return;
+  var open = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  if (chev) chev.classList.toggle('open', !open);
+}
+document.getElementById('body-n1').classList.add('open');
+document.getElementById('chev-n1').classList.add('open');
+</script>
+</body>
+</html>
